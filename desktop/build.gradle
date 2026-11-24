@@ -1,0 +1,75 @@
+plugins {
+    id 'application'
+    id 'com.gradleup.shadow' version '8.3.5'
+    id 'edu.sc.seis.launch4j' version '3.0.6'
+}
+
+ext {
+    gdxVersion = '1.12.1'
+    appMainClass = 'com.dndcoop.desktop.DesktopLauncher'
+    appName = 'AshenLanternDnD5E'
+}
+
+application {
+    mainClass = appMainClass
+}
+
+sourceSets.main.resources.srcDirs = [rootProject.file('assets')]
+
+dependencies {
+    implementation project(':core')
+    implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
+    implementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
+    implementation "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-desktop"
+}
+
+tasks.named('run') {
+    workingDir = rootProject.file('assets')
+}
+
+shadowJar {
+    archiveBaseName.set(appName)
+    archiveClassifier.set('')
+    archiveVersion.set('')
+    manifest {
+        attributes 'Main-Class': appMainClass
+    }
+    mergeServiceFiles()
+}
+
+launch4j {
+    mainClassName = appMainClass
+    outfile = "${appName}.exe"
+    headerType = 'gui'
+    productName = 'The Ashen Lantern - D&D 5E Couch Co-op'
+    fileDescription = 'Couch Co-op Text-Based D&D 5E RPG (Java 17 + LibGDX)'
+    copyright = 'Ashen Lantern D&D 5E Co-op'
+    version = '1.0.0.0'
+    textVersion = '1.0.0'
+    jreMinVersion = '17'
+    jarTask = project.tasks.shadowJar
+    dontWrapJar = false
+    downloadUrl = 'https://adoptium.net/temurin/releases/?version=17'
+    errTitle = 'Java 17 Required - Ashen Lantern D&D 5E'
+    jvmOptions = ['-Xms256m', '-Xmx1024m']
+}
+
+tasks.register('jpackageWindows', Exec) {
+    group = 'distribution'
+    description = 'Optional: Run on Windows with JDK 17+ to bundle a self-contained Windows app image with embedded JRE.'
+    dependsOn shadowJar
+    doFirst {
+        if (!System.getProperty('os.name').toLowerCase().contains('win')) {
+            throw new GradleException('jpackageWindows must be run on Windows. On Linux, use :desktop:createExe to generate the standalone Windows .exe launcher.')
+        }
+    }
+    commandLine 'jpackage',
+            '--type', 'app-image',
+            '--name', appName,
+            '--input', "${buildDir}/libs",
+            '--main-jar', "${appName}.jar",
+            '--main-class', appMainClass,
+            '--dest', "${buildDir}/jpackage",
+            '--app-version', '1.0.0',
+            '--vendor', 'AshenLanternCoop'
+}
